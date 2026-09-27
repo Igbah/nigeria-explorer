@@ -1,0 +1,24 @@
+# Nigeria Demographic Explorer - Python requirements
+# ---------------------------------------------------
+# Needed ONLY to rebuild the data from the raw downloads (processing/ scripts).
+# Viewing or hosting the map (index.html + data/) needs no Python packages at all.
+#
+# Install:   pip install -r requirements.txt
+# Tested with Python 3.11 and the versions noted on the right.
+#
+# Windows tip: geopandas and rasterio install most easily with conda:
+#   conda install -c conda-forge geopandas rasterio h3-py openpyxl
+
+pandas>=2.0          # tested 3.0.2  - tables, cleaning, Excel export
+numpy>=1.24          # tested 2.4.4  - arrays and raster maths
+geopandas>=0.14      # tested 1.1.4  - boundaries, spatial joins, GeoJSON output
+shapely>=2.0         # tested 2.1.2  - geometry engine used by geopandas
+pyproj>=3.6          # tested 3.7.2  - equal-area projection for km2 and distances
+pyogrio>=0.7         # tested 0.13.0 - fast GeoJSON read/write for geopandas
+rasterio>=1.3        # tested 1.4.4  - reads the GRID3 and WorldPop GeoTIFFs
+h3>=4.0,<5           # tested 4.5.0  - H3 hexagon grid (version 4 API)
+openpyxl>=3.1        # tested 3.1.5  - reads the CRSV .xlsx and writes the results workbook
+
+# Optional: to open the map inside Jupyter (notebooks/open_explorer.ipynb)
+# notebook>=7
+# ipython>=8

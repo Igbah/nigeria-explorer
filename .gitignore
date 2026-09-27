@@ -1,0 +1,10 @@
+# Raw downloads are large (the population GeoTIFF alone is ~50 MB); keep them out of Git.
+raw_data/*
+!raw_data/README.md
+# Intermediate outputs can be regenerated with: python processing/run_all.py
+processed/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db

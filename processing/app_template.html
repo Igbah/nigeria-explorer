@@ -1,0 +1,993 @@
+<title>Nigeria Demographic Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*MAPLIBRE_CSS*/
+</style>
+<style>
+/* Single dark look on purpose: the map is a night-style population map. All colours are set explicitly. */
+:root {
+  color-scheme: dark;
+  --ground: #121118;
+  --panel: #1b1a24;
+  --panel-2: #24222f;
+  --line: #34313f;
+  --ink: #efeae2;
+  --ink-2: #b9b3c4;
+  --muted: #8a8497;
+  --accent: #f2a93b;
+  --accent-ink: #1a1206;
+  --male: #5f93e0;
+  --female: #d06f22;
+  --lv1: #2f9d8a;
+  --lv2: #bd8220;
+  --lv3: #d9577e;
+  --ringA: #f2a93b;
+  --ringB: #e46b52;
+  --focus: #ffd37a;
+  --radius: 10px;
+  --display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --toolbar-h: 58px;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+button, select, input { font: inherit; color: inherit; }
+button { touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+#app { position: relative; height: 100%; overflow: hidden; }
+#map { position: absolute; inset: 0; background: var(--ground); }
+.maplibregl-ctrl-attrib { background: rgba(18,17,24,.75) !important; color: var(--muted); }
+.maplibregl-ctrl-attrib a { color: var(--ink-2); }
+.maplibregl-ctrl-group { background: var(--panel) !important; border: 1px solid var(--line); box-shadow: none !important; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--line) !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(.9); }
+
+/* ---------- panel (side panel on desktop, bottom sheet on phones) ---------- */
+.panel {
+  position: absolute; z-index: 5; top: 16px; left: 16px; width: 380px;
+  max-height: calc(100% - var(--toolbar-h) - 44px); display: flex; flex-direction: column;
+  background: color-mix(in srgb, var(--panel) 95%, transparent); backdrop-filter: blur(8px);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.sheet-handle { display: none; }
+.panel-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); min-height: 48px; }
+.back { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px 6px 9px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink); max-width: 60%; }
+.back span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back svg { width: 16px; height: 16px; flex: none; }
+.back:hover { border-color: var(--accent); }
+.brand { font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(242,169,59,.18); }
+.panel-head .spacer { flex: 1; }
+.linkbtn { white-space: nowrap; background: none; border: 0; color: var(--ink-2); cursor: pointer; font-size: 12.5px; padding: 6px 8px; border-radius: 6px; }
+.linkbtn:hover { color: var(--ink); background: var(--panel-2); }
+.panel-body { overflow-y: auto; padding: 14px; display: grid; gap: 16px; align-content: start; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.crumbs { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+.crumbs button { background: none; border: 0; padding: 0; color: var(--ink-2); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+h1.place { font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1.05; margin: 2px 0 4px; text-wrap: balance; letter-spacing: -.01em; }
+.sub { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; }
+.bigline { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.bignum { font-family: var(--mono); font-size: 26px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.stat { background: var(--panel); padding: 9px 10px; display: grid; gap: 2px; align-content: start; }
+.stat .v { font-family: var(--mono); font-size: 16px; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+.section { display: grid; gap: 8px; }
+.section-title { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; }
+.section-title h2 { font-family: var(--display); font-size: 15px; font-weight: 500; margin: 0; }
+.note { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tab { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); }
+.tab[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.seg button { border: 0; background: none; border-radius: 999px; padding: 7px 8px; cursor: pointer; font-size: 13px; color: var(--ink-2); font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+.hint { border: 1px dashed var(--line); border-radius: 8px; padding: 12px; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
+.rows { display: grid; gap: 6px; }
+.row { display: grid; grid-template-columns: minmax(84px, 112px) 1fr 58px; gap: 8px; align-items: center; font-size: 12.5px; }
+.row .lab { color: var(--ink-2); display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sw { width: 9px; height: 9px; border-radius: 2px; flex: none; display: inline-block; }
+.bar { height: 9px; background: var(--panel-2); border-radius: 0 4px 4px 0; overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+.row .val { font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+table.lgas { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.lgas th { text-align: right; font-weight: 500; color: var(--muted); padding: 6px 6px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; background: var(--panel); position: sticky; top: 0; z-index: 1; }
+table.lgas th:first-child, table.lgas td:first-child { text-align: left; }
+table.lgas td { padding: 8px 6px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+table.lgas td:first-child { font-family: var(--sans); color: var(--ink); }
+table.lgas tr[data-lga]:hover td, table.lgas tr[data-state]:hover td { background: var(--panel-2); cursor: pointer; }
+.tablewrap { overflow: auto; max-height: 300px; border: 1px solid var(--line); border-radius: 8px; }
+.cmp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.cmp > * { min-width: 0; }
+.cmp-col { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.tag { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: 50%; font-weight: 700; font-size: 11px; color: var(--accent-ink); }
+.kv { display: flex; justify-content: space-between; gap: 6px; font-size: 12.5px; }
+.kv span:first-child { color: var(--muted); }
+.kv span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+select.pick { width: 100%; min-width: 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 13px; }
+.empty { color: var(--muted); font-size: 12.5px; text-align: center; padding: 18px 4px; }
+.radius-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.radius-row input { width: 100%; accent-color: var(--accent); height: 28px; }
+.radius-row output { font-family: var(--mono); color: var(--ink); min-width: 48px; text-align: right; }
+
+/* frozen (sticky) comparison header: stays at the top while the rows scroll underneath */
+.freeze { position: sticky; top: -14px; z-index: 3; margin: 0 -14px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line); box-shadow: 0 8px 12px -10px rgba(0,0,0,.8); }
+.freeze-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.freeze-cell { display: grid; gap: 4px; min-width: 0; }
+.freeze-cell .who { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.freeze-cell .who b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.freeze-cell .n { font-family: var(--mono); font-size: 13.5px; font-variant-numeric: tabular-nums; color: var(--accent); }
+table.ctab { width: 100%; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+table.ctab col.k { width: 44%; }
+table.ctab td { padding: 8px 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); vertical-align: top; }
+table.ctab td:first-child { color: var(--ink-2); padding-left: 0; }
+table.ctab td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+table.ctab td.num.hi { color: var(--ink); font-weight: 600; }
+table.ctab tr.grp td { padding-top: 16px; border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; }
+.legend-inline { display: none; }
+
+/* ---------- top-right controls ---------- */
+.controls { position: absolute; z-index: 5; top: 16px; right: 56px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.card { background: color-mix(in srgb, var(--panel) 95%, transparent); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
+.metric-card { display: grid; gap: 4px; width: 260px; }
+.metric-card label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+.metric-card select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; }
+.layers { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.chip[aria-pressed="false"] { color: var(--muted); }
+.chip[aria-pressed="true"] { border-color: var(--accent); }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.chip[aria-pressed="true"] .dot { background: var(--accent); }
+
+/* ---------- toolbar ---------- */
+.toolbar { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 4px; align-items: center; background: color-mix(in srgb, var(--panel) 97%, transparent); border: 1px solid var(--line); border-radius: 999px; padding: 5px; }
+.mode { border: 0; background: none; padding: 8px 15px; border-radius: 999px; cursor: pointer; color: var(--ink-2); font-weight: 500; font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px; }
+.mode svg { width: 16px; height: 16px; }
+.mode[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.tb-back { color: var(--ink); border: 1px solid var(--line); }
+.toast { position: absolute; z-index: 9; left: 50%; transform: translateX(-50%); top: 16px; background: var(--accent); color: var(--accent-ink); padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; pointer-events: none; max-width: calc(100% - 32px); text-align: center; }
+
+/* ---------- legend ---------- */
+.legend { position: absolute; z-index: 5; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); width: 236px; display: grid; gap: 8px; }
+.lg { display: grid; gap: 5px; }
+.lg .t { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+.ramp { height: 10px; border-radius: 3px; }
+.ramp-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--ink-2); gap: 6px; }
+.leg-row { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+.leg-row span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- tooltip & markers ---------- */
+.tip { position: absolute; z-index: 20; pointer-events: none; background: #0d0c12; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 12.5px; line-height: 1.45; max-width: 250px; color: var(--ink); }
+.tip .m { font-family: var(--mono); }
+.pin { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: var(--accent-ink); border: 2px solid #0d0c12; cursor: grab; box-shadow: 0 2px 8px rgba(0,0,0,.5); touch-action: none; }
+.pin:active { cursor: grabbing; }
+.pin-label { position: absolute; left: 50%; top: -24px; transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 11px; background: #0d0c12; color: var(--ink); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); pointer-events: none; }
+
+/* ---------- modal ---------- */
+.modal { position: absolute; inset: 0; z-index: 30; background: rgba(8,7,12,.66); display: grid; place-items: center; padding: 16px; }
+.modal-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); width: min(640px, 100%); max-height: 88%; overflow-y: auto; padding: 20px 22px; display: grid; gap: 12px; }
+.modal-card h2 { font-family: var(--display); margin: 0; font-size: 22px; }
+.modal-card h3 { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
+.modal-card p, .modal-card li { color: var(--ink-2); font-size: 13px; line-height: 1.55; max-width: 65ch; }
+.modal-card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.loading { position: absolute; z-index: 8; right: 16px; top: 16px; font-size: 12px; color: var(--ink-2); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; }
+
+/* ---------- phones ---------- */
+@media (max-width: 760px) {
+  :root { --toolbar-h: 56px; }
+  .panel {
+    top: auto; left: 0; right: 0; width: auto; bottom: 0;
+    padding-bottom: calc(var(--toolbar-h) + 10px + env(safe-area-inset-bottom, 0px));
+    border-radius: 16px 16px 0 0; border-left: 0; border-right: 0; border-bottom: 0;
+    max-height: none; height: var(--sheet-h, 232px); transition: height .22s ease;
+  }
+  .panel[data-sheet="peek"] .panel-body { overflow: hidden; }
+  .sheet-handle { display: grid; place-items: center; gap: 3px; width: 100%; border: 0; background: none; padding: 7px 0 2px; cursor: pointer; color: var(--muted); font-size: 11px; touch-action: none; }
+  .sheet-handle i { width: 40px; height: 4px; border-radius: 2px; background: var(--line); }
+  .panel-head { padding: 4px 12px 8px; min-height: 0; }
+  .brand .txt { font-size: 12.5px; }
+  h1.place { font-size: 26px; }
+  .controls { top: calc(10px + env(safe-area-inset-top, 0px)); right: 10px; left: 10px; align-items: stretch; }
+  .metric-card { width: auto; padding: 6px 8px; }
+  .metric-card label { display: none; }
+  .layers { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .layers::-webkit-scrollbar { display: none; }
+  .legend { display: none !important; }
+  .legend-inline { display: grid; gap: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .toolbar { left: 8px; right: 8px; transform: none; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); justify-content: space-between; z-index: 7; }
+  .mode { padding: 10px 8px; font-size: 13.5px; flex: 1; justify-content: center; }
+  .tb-back { flex: 0 0 auto; padding: 10px 12px; }
+  .maplibregl-ctrl-top-right { display: none; }
+  .maplibregl-ctrl-bottom-right { bottom: var(--sheet-h, 232px); }
+  .loading { top: auto; bottom: calc(var(--sheet-h, 232px) + 8px); right: 10px; }
+  .toast { top: auto; bottom: calc(var(--sheet-h, 232px) + 10px); }
+  .modal-card { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="app">
+  <div id="map" role="application" aria-label="Map of Nigeria"></div>
+
+  <aside class="panel" id="panel" data-sheet="peek" aria-label="Details">
+    <button class="sheet-handle" id="sheetHandle" type="button" aria-label="Show more details"><i></i><span id="sheetHint">Swipe up for details</span></button>
+    <div class="panel-head">
+      <button class="back" id="backBtn" type="button" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="backLabel">Back</span>
+      </button>
+      <div class="brand" id="brand"><span class="brand-dot"></span><span class="txt">Nigeria Demographic Explorer</span></div>
+      <div class="spacer"></div>
+      <button class="linkbtn" id="aboutBtn" type="button">About</button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+  </aside>
+
+  <div class="controls">
+    <div class="card metric-card" id="metricCard">
+      <label for="metricSel">Colour states by</label>
+      <select id="metricSel" aria-label="Colour states by"></select>
+    </div>
+    <div class="layers" id="layerChips" hidden>
+      <button class="chip" type="button" id="chipHex" aria-pressed="true"><span class="dot"></span>Population</button>
+      <button class="chip" type="button" id="chipLga" aria-pressed="true"><span class="dot"></span>LGA borders</button>
+      <button class="chip" type="button" id="chipFac" aria-pressed="false"><span class="dot"></span>Health facilities</button>
+    </div>
+  </div>
+
+  <nav class="toolbar" role="toolbar" aria-label="Tools">
+    <button class="mode tb-back" id="tbBack" type="button" hidden aria-label="Back">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span>
+    </button>
+    <button class="mode" type="button" data-mode="explore" aria-pressed="true">Explore</button>
+    <button class="mode" type="button" data-mode="circle" aria-pressed="false">Circle</button>
+    <button class="mode" type="button" data-mode="compare" aria-pressed="false">Compare</button>
+  </nav>
+
+  <div class="card legend" id="legend"></div>
+  <div class="toast" id="toast" hidden></div>
+  <div class="loading" id="loading" hidden>Loading…</div>
+  <div class="tip" id="tip" hidden></div>
+
+  <div class="modal" id="about" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h2 id="aboutTitle">About the data</h2>
+        <button class="linkbtn" id="aboutClose" type="button">Close</button>
+      </div>
+      <p>Every figure on this map is a modelled or survey-based estimate. Nigeria's last census was in 2006, so population counts come from satellite-based models, not a head count.</p>
+      <h3>How to use it</h3>
+      <ul>
+        <li><b>Explore:</b> tap or click a state to open it. Tap an LGA or a facility dot for its figures. Use Back to return.</li>
+        <li><b>Circle:</b> tap the map to drop a circle and see who lives inside it. Drag the pin, or tap again, to move it.</li>
+        <li><b>Compare:</b> choose two states, or drop circles A and B, and read them side by side. The names stay pinned at the top while you scroll.</li>
+        <li><b>On a phone:</b> swipe the panel up for details and down to see the map.</li>
+      </ul>
+      <h3>Sources</h3>
+      <ul>
+        <li><b>Population:</b> GRID3 NGA population v3.0, 100 m grid (about 237.5 million people), grouped into H3 hexagons of about 5.2 km².</li>
+        <li><b>Age and sex:</b> WorldPop Global2 R2025A, 2025, 1 km. Its age and sex shares are applied to the GRID3 totals. The 35–39 group is estimated from the groups either side until its source files are added.</li>
+        <li><b>Health facilities:</b> eHealth Africa / GRID3 registry (updated 2018–2020), 45,879 patient-care facilities. Ownership is not in the source; public/private is inferred from facility type and name, and about half remain "not stated".</li>
+        <li><b>Boundaries:</b> eHealth Africa / GRID3 states (37) and LGAs (774).</li>
+        <li><b>Poverty:</b> Multidimensional Poverty Index 2021 (OPHI, via HDX).</li>
+        <li><b>Maternal mortality:</b> National Bureau of Statistics, 2016, deaths per 100,000 live births.</li>
+        <li><b>Contraception:</b> NBS 2017, use among currently married women.</li>
+        <li><b>Displacement:</b> IDMC internal displacement updates, January 2025 to August 2026, official figures only, placed at the place people fled from.</li>
+        <li><b>Conflict-related sexual violence:</b> Insecurity Insight, reported incidents 2020–2026. Reported counts are a minimum, not true prevalence.</li>
+      </ul>
+      <h3>How the circle tool counts</h3>
+      <p>A hexagon is counted when its centre falls inside the circle, so edges are accurate to about 1 km. Facilities are counted by their exact location. The nearest-hospital distance is a straight line, not a travel distance.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const nf = new Intl.NumberFormat("en-NG");
+const fmt = n => n == null || isNaN(n) ? "–" : nf.format(Math.round(n));
+const fmt1 = n => n == null || isNaN(n) ? "–" : (Math.round(n * 10) / 10).toLocaleString("en-NG", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmt2 = n => n == null || isNaN(n) ? "–" : (+n).toFixed(2);
+const pct = n => n == null || isNaN(n) ? "–" : fmt1(n) + "%";
+const big = n => n == null || isNaN(n) ? "–" : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 1 : 2) + "M" : n >= 1e4 ? Math.round(n / 1e3) + "k" : fmt(n);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const COL = { male: css("--male"), female: css("--female"), lv: [css("--lv1"), css("--lv2"), css("--lv3"), "#6c6679"], A: css("--ringA"), B: css("--ringB") };
+const MAGMA = ["#2a1d45", "#51286e", "#8a3570", "#c64f55", "#ec8a3a", "#f7c46a", "#fdeec0"];
+const AGES = ["0-4","5-9","10-14","15-19","20-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79","80+"];
+const NIGERIA_BOUNDS = [[2.67, 4.27], [14.68, 13.89]];
+const isPhone = () => matchMedia("(max-width: 760px)").matches;
+const tapWord = () => isPhone() ? "Tap" : "Click";
+
+const METRICS = [
+  { key: "density", label: "Population density", unit: "people / km²", fmt: fmt, log: true },
+  { key: "pop", label: "Population (2025 model)", unit: "people", fmt: big, log: true },
+  { key: "u15", label: "Children under 15", unit: "% of population", fmt: pct },
+  { key: "dep", label: "Dependency ratio", unit: "per 100 working-age", fmt: fmt1 },
+  { key: "poor", label: "Multidimensional poverty (2021)", unit: "% of people poor", fmt: pct },
+  { key: "hf10k", label: "Health facilities per 10,000 people", unit: "per 10,000", fmt: fmt2 },
+  { key: "pphosp", label: "People per secondary/tertiary facility", unit: "people", fmt: big, log: true },
+  { key: "mmr", label: "Maternal mortality (2016)", unit: "per 100,000 births", fmt: fmt },
+  { key: "cpr", label: "Modern contraception (2017)", unit: "% married women", fmt: pct },
+  { key: "disp1k", label: "Displaced 2025–26", unit: "per 1,000 residents", fmt: v => (+v).toFixed(1) }
+];
+
+const S = {
+  view: "nation", mode: "explore", code: null, metric: "density",
+  states: null, stateByCode: {}, nigeria: null, cache: {},
+  layers: { hex: true, lga: true, fac: false },
+  circles: { A: null, B: null }, radius: 10, tab: "pop",
+  cmpKind: "states", cmpStates: ["NG025", "NG020"], lgaSort: "population", results: {}
+};
+
+/* ---------------- data ---------------- */
+const getJSON = async url => { const r = await fetch(url); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); };
+let loadingCount = 0;
+const busy = on => { loadingCount = Math.max(0, loadingCount + (on ? 1 : -1)); $("#loading").hidden = loadingCount === 0; };
+async function loadState(code, parts = ["profile", "hex", "fac", "lga"]) {
+  const c = S.cache[code] ||= {};
+  const jobs = [];
+  if (parts.includes("profile") && !c.profile) jobs.push(getJSON(`data/state/${code}.json`).then(d => c.profile = d));
+  if (parts.includes("hex") && !c.hex) jobs.push(getJSON(`data/hex/${code}.json`).then(d => c.hex = prepHex(d)));
+  if (parts.includes("fac") && !c.fac) jobs.push(getJSON(`data/fac/${code}.json`).then(d => c.fac = d));
+  if (parts.includes("lga") && !c.lga) jobs.push(getJSON(`data/lga/${code}.geojson`).then(d => c.lga = d));
+  if (!jobs.length) return c;
+  busy(true);
+  try { await Promise.all(jobs); } catch (e) { toast("Could not load data for this state. Check your connection and try again."); console.error(e); }
+  finally { busy(false); }
+  return c;
+}
+function prepHex(d) {
+  const n = d.cells.length, lat = new Float64Array(n), lng = new Float64Array(n), feats = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const [h, p] = d.cells[i];
+    const ll = h3.cellToLatLng(h); lat[i] = ll[0]; lng[i] = ll[1];
+    feats[i] = { type: "Feature", properties: { p, lp: Math.log10(Math.max(p, 1)) }, geometry: { type: "Polygon", coordinates: [h3.cellToBoundary(h, true)] } };
+  }
+  return { cells: d.cells, lat, lng, feats };
+}
+
+/* ---------------- map ---------------- */
+const map = new maplibregl.Map({
+  container: "map",
+  style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": css("--ground") } }] },
+  bounds: NIGERIA_BOUNDS, fitBoundsOptions: { padding: 20 },
+  minZoom: 3.5, maxZoom: 13, attributionControl: false, dragRotate: false, pitchWithRotate: false
+});
+map.touchZoomRotate.disableRotation();
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "GRID3 · WorldPop · eHealth Africa · OPHI · NBS · IDMC" }));
+const EMPTY = { type: "FeatureCollection", features: [] };
+
+function metricColorExpr(m) {
+  const vals = S.states.features.map(f => f.properties[m.key]).filter(v => v != null);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const t = v => m.log ? Math.log10(Math.max(v, 1e-6)) : v;
+  const a = t(lo), b = t(hi), stops = [];
+  MAGMA.slice(0, 6).forEach((c, i) => stops.push(a + (b - a) * i / 5, c));
+  const input = m.log ? ["log10", ["max", ["get", m.key], 0.000001]] : ["get", m.key];
+  return { expr: ["case", ["==", ["get", m.key], null], "#2a2833", ["interpolate", ["linear"], input, ...stops]], lo, hi };
+}
+
+map.on("load", async () => {
+  busy(true);
+  try {
+    const [states, nigeria] = await Promise.all([getJSON("data/states.geojson"), getJSON("data/nigeria.json")]);
+    S.states = states; S.nigeria = nigeria;
+  } catch (e) {
+    busy(false);
+    $("#panelBody").innerHTML = `<div class="hint">The map data could not be loaded. If you opened index.html by double-clicking it, open it through a local web server instead (see README). Otherwise check your connection and reload.</div>`;
+    return;
+  }
+  busy(false);
+  S.states.features.forEach((f, i) => { f.id = i; S.stateByCode[f.properties.code] = f; });
+  map.addSource("states", { type: "geojson", data: S.states });
+  map.addSource("hex", { type: "geojson", data: EMPTY });
+  map.addSource("lga", { type: "geojson", data: EMPTY, promoteId: "id" });
+  map.addSource("fac", { type: "geojson", data: EMPTY });
+  map.addSource("circles", { type: "geojson", data: EMPTY });
+  map.addLayer({ id: "states-fill", type: "fill", source: "states", paint: { "fill-color": "#2a2833", "fill-opacity": 0.92 } });
+  map.addLayer({ id: "hex-fill", type: "fill", source: "hex", paint: {
+    "fill-color": ["interpolate", ["linear"], ["get", "lp"], 0, MAGMA[0], 1, MAGMA[1], 2, MAGMA[2], 2.7, MAGMA[3], 3.3, MAGMA[4], 3.9, MAGMA[5], 4.5, MAGMA[6]],
+    "fill-opacity": 0.9, "fill-outline-color": "rgba(18,17,24,0.35)" } });
+  map.addLayer({ id: "lga-fill", type: "fill", source: "lga", paint: { "fill-color": "#ffffff", "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.1, 0] } });
+  map.addLayer({ id: "lga-line", type: "line", source: "lga", paint: { "line-color": "#efeae2", "line-opacity": 0.35, "line-width": 0.7 } });
+  map.addLayer({ id: "states-line", type: "line", source: "states", paint: {
+    "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#f2a93b", "#0e0d13"],
+    "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2, 0.9] } });
+  map.addLayer({ id: "fac-pts", type: "circle", source: "fac", paint: {
+    "circle-color": ["match", ["get", "l"], 0, COL.lv[0], 1, COL.lv[1], 2, COL.lv[2], COL.lv[3]],
+    "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, ["match", ["get", "l"], 0, 1.4, 3], 10, ["match", ["get", "l"], 0, 3.5, 6]],
+    "circle-stroke-color": "#121118", "circle-stroke-width": 0.8 } });
+  map.addLayer({ id: "circle-fill", type: "fill", source: "circles", paint: { "fill-color": ["get", "c"], "fill-opacity": 0.12 } });
+  map.addLayer({ id: "circle-line", type: "line", source: "circles", paint: { "line-color": ["get", "c"], "line-width": 2.5, "line-dasharray": [2, 1.5] } });
+  initControls(); bindMapEvents(); applyMetric(); setSheet("peek"); render(); fitNigeria(false);
+});
+
+function applyMetric() {
+  if (!S.states) return;
+  const m = METRICS.find(x => x.key === S.metric);
+  const { expr, lo, hi } = metricColorExpr(m);
+  S.metricRange = [lo, hi];
+  if (S.view === "nation" && S.mode === "explore") {
+    map.setPaintProperty("states-fill", "fill-color", expr);
+    map.setPaintProperty("states-fill", "fill-opacity", 0.92);
+  } else {
+    map.setPaintProperty("states-fill", "fill-color", S.code ? ["case", ["==", ["get", "code"], S.code], "#171620", "#201e2a"] : "#201e2a");
+    map.setPaintProperty("states-fill", "fill-opacity", 1);
+  }
+}
+function refreshHex() {
+  const show = S.layers.hex && (S.view === "state" || (S.mode !== "explore" && !(S.mode === "compare" && S.cmpKind === "states")));
+  const codes = Object.keys(S.cache).filter(c => S.cache[c].hex);
+  map.getSource("hex").setData(show ? { type: "FeatureCollection", features: codes.flatMap(c => S.cache[c].hex.feats) } : EMPTY);
+}
+function refreshLga() {
+  const c = S.cache[S.code];
+  map.getSource("lga").setData(S.view === "state" && S.layers.lga && c?.lga ? c.lga : EMPTY);
+}
+function refreshFac() {
+  if (!S.layers.fac || (S.view === "nation" && S.mode === "explore")) { map.getSource("fac").setData(EMPTY); return; }
+  const codes = S.view === "state" && S.mode === "explore" ? [S.code] : Object.keys(S.cache);
+  const feats = [];
+  for (const code of codes) {
+    const f = S.cache[code]?.fac; if (!f) continue;
+    f.rows.forEach((r, i) => feats.push({ type: "Feature", properties: { c: code, i, l: r[3] }, geometry: { type: "Point", coordinates: [r[0], r[1]] } }));
+  }
+  map.getSource("fac").setData({ type: "FeatureCollection", features: feats });
+}
+
+/* ---------------- layout helpers ---------------- */
+const SHEET = { peek: 232, half: 0.52, full: 0.86 };
+function setSheet(state) {
+  const p = $("#panel");
+  p.dataset.sheet = state;
+  const h = state === "peek" ? SHEET.peek : Math.round(innerHeight * SHEET[state]);
+  document.documentElement.style.setProperty("--sheet-h", h + "px");
+  $("#sheetHint").textContent = state === "full" ? "Swipe down to see the map" : state === "half" ? "Swipe up for more · down for the map" : "Swipe up for details";
+  $("#sheetHandle").setAttribute("aria-label", state === "full" ? "Show less" : "Show more details");
+}
+function mapPadding() {
+  if (isPhone()) {
+    const top = Math.round($(".controls").getBoundingClientRect().bottom || 90) + 8;
+    const sheet = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--sheet-h")) || SHEET.peek;
+    return { top, bottom: Math.min(sheet, innerHeight * 0.55) + 10, left: 12, right: 12 };
+  }
+  return { top: 40, bottom: 100, left: 420, right: 60 };
+}
+function fitNigeria(animate = true) { map.fitBounds(NIGERIA_BOUNDS, { padding: mapPadding(), duration: animate ? 700 : 0 }); }
+function fitState(code) { const [w, s, e, n] = S.stateByCode[code].properties.bbox; map.fitBounds([[w, s], [e, n]], { padding: mapPadding(), duration: 650 }); }
+
+/* ---------------- navigation & back ---------------- */
+const inFrame = (() => { try { return window.self !== window.top; } catch { return true; } })();
+function pushNav() { if (!inFrame) try { history.pushState({ nx: Date.now() }, ""); } catch {} }
+function canBack() { return S.mode !== "explore" || S.view === "state"; }
+function backLabel() { return S.mode !== "explore" ? (S.view === "state" ? S.stateByCode[S.code].properties.name : "Nigeria") : "Nigeria"; }
+let skipPop = 0;
+function goBack(fromHistory = false) {
+  if (S.mode !== "explore") setMode("explore", true);
+  else if (S.view === "state") goNation();
+  if (!fromHistory && !inFrame) { skipPop++; try { history.back(); } catch { skipPop--; } }
+}
+window.addEventListener("popstate", () => { if (skipPop > 0) { skipPop--; return; } if (canBack()) goBack(true); });
+
+async function openState(code) {
+  if (S.view !== "state") pushNav();
+  S.view = "state"; S.code = code; S.lgaSort = "population";
+  setSheet(isPhone() ? "half" : "peek"); fitState(code); applyMetric(); refreshLga(); refreshFac(); render();
+  await loadState(code, ["profile", "hex", "lga", ...(S.layers.fac ? ["fac"] : [])]);
+  if (S.code !== code) return;
+  refreshHex(); refreshLga(); refreshFac(); render();
+}
+function goNation() {
+  S.view = "nation"; S.code = null;
+  setSheet("peek"); fitNigeria(); applyMetric(); refreshHex(); refreshLga(); refreshFac(); render();
+}
+
+/* ---------------- circles ---------------- */
+const R_EARTH = 6371.0088;
+function circlePoly(lng, lat, km, n = 72) {
+  const out = [], d = km / R_EARTH, la = lat * Math.PI / 180, lo = lng * Math.PI / 180;
+  for (let i = 0; i <= n; i++) {
+    const b = 2 * Math.PI * i / n;
+    const la2 = Math.asin(Math.sin(la) * Math.cos(d) + Math.cos(la) * Math.sin(d) * Math.cos(b));
+    const lo2 = lo + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la), Math.cos(d) - Math.sin(la) * Math.sin(la2));
+    out.push([lo2 * 180 / Math.PI, la2 * 180 / Math.PI]);
+  }
+  return out;
+}
+function hav(lat1, lng1, lat2, lng2) {
+  const r = Math.PI / 180, dl = (lat2 - lat1) * r, dg = (lng2 - lng1) * r;
+  const a = Math.sin(dl / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dg / 2) ** 2;
+  return 2 * R_EARTH * Math.asin(Math.sqrt(a));
+}
+function statesNear(lng, lat, km) {
+  const dLat = km / 111, dLng = km / (111 * Math.cos(lat * Math.PI / 180));
+  return S.states.features.filter(f => { const [w, s, e, n] = f.properties.bbox; return lng + dLng >= w && lng - dLng <= e && lat + dLat >= s && lat - dLat <= n; }).map(f => f.properties.code);
+}
+const markers = {};
+async function placeCircle(key, lngLat) {
+  S.circles[key] = { lng: lngLat.lng, lat: lngLat.lat };
+  if (!markers[key]) {
+    const el = document.createElement("div");
+    el.className = "pin"; el.style.background = COL[key]; el.textContent = key;
+    el.setAttribute("aria-label", "Circle " + key + " centre, drag to move");
+    const lab = document.createElement("span"); lab.className = "pin-label"; el.appendChild(lab);
+    const mk = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(map);
+    mk.on("drag", () => { const p = mk.getLngLat(); S.circles[key] = { lng: p.lng, lat: p.lat }; drawCircles(); scheduleAnalysis(); });
+    mk.on("dragend", () => analyseAndRender());
+    markers[key] = { mk, lab };
+  } else markers[key].mk.setLngLat(lngLat);
+  drawCircles();
+  if (isPhone() && $("#panel").dataset.sheet === "peek") setSheet("half");
+  await analyseAndRender();
+}
+function clearCircles() {
+  for (const k of ["A", "B"]) { if (markers[k]) { markers[k].mk.remove(); delete markers[k]; } S.circles[k] = null; }
+  S.results = {}; drawCircles();
+}
+function drawCircles() {
+  const feats = [];
+  for (const k of ["A", "B"]) {
+    const c = S.circles[k]; if (!c) continue;
+    feats.push({ type: "Feature", properties: { c: COL[k] }, geometry: { type: "Polygon", coordinates: [circlePoly(c.lng, c.lat, S.radius)] } });
+  }
+  map.getSource("circles")?.setData({ type: "FeatureCollection", features: feats });
+}
+let pending = null;
+function scheduleAnalysis() { if (pending) return; pending = requestAnimationFrame(() => { pending = null; analyseSync(); render(); }); }
+async function analyseAndRender() {
+  const need = new Set();
+  for (const k of ["A", "B"]) { const c = S.circles[k]; if (c) statesNear(c.lng, c.lat, S.radius).forEach(x => need.add(x)); }
+  await Promise.all([...need].map(code => loadState(code, ["hex", "fac"])));
+  refreshHex(); refreshFac(); analyseSync(); render();
+}
+function analyseSync() {
+  S.results = {};
+  for (const k of ["A", "B"]) {
+    const c = S.circles[k]; if (!c) continue;
+    const res = { pop: 0, male: new Array(17).fill(0), female: new Array(17).fill(0), lv: [0, 0, 0, 0], own: [0, 0, 0], func: 0, fac: 0, near: null };
+    const km = S.radius, dLat = km / 111, dLng = km / (111 * Math.cos(c.lat * Math.PI / 180));
+    for (const code of statesNear(c.lng, c.lat, km)) {
+      const h = S.cache[code]?.hex;
+      if (h) for (let i = 0; i < h.lat.length; i++) {
+        if (Math.abs(h.lat[i] - c.lat) > dLat || Math.abs(h.lng[i] - c.lng) > dLng) continue;
+        if (hav(c.lat, c.lng, h.lat[i], h.lng[i]) > km) continue;
+        const cell = h.cells[i]; res.pop += cell[1];
+        for (let a = 0; a < 17; a++) { res.male[a] += cell[2][a]; res.female[a] += cell[3][a]; }
+      }
+      const f = S.cache[code]?.fac; if (!f) continue;
+      for (const r of f.rows) {
+        const d = hav(c.lat, c.lng, r[1], r[0]);
+        if ((r[3] === 1 || r[3] === 2) && (!res.near || d < res.near.d)) res.near = { d, name: r[2], level: f.levels[r[3]], lga: r[7] };
+        if (d > km) continue;
+        res.fac++; res.lv[r[3]]++; res.own[r[4]]++; if (r[5] === 0) res.func++;
+      }
+    }
+    if (markers[k]) markers[k].lab.textContent = big(res.pop) + " people";
+    S.results[k] = res;
+  }
+}
+
+/* ---------------- charts ---------------- */
+function pyramid(male, female, opts = {}) {
+  const W = opts.w || 330, rowH = opts.rowH || 13, gap = 2, labW = 38, top = 18;
+  const tot = male.reduce((a, b) => a + b, 0) + female.reduce((a, b) => a + b, 0) || 1;
+  const pm = male.map(v => 100 * v / tot), pf = female.map(v => 100 * v / tot);
+  const max = opts.max || Math.max(...pm, ...pf, 0.1);
+  const half = (W - labW) / 2, cx = labW + half, H = top + 17 * (rowH + gap) + 16;
+  const sc = v => (half - 4) * v / max, ink2 = css("--ink-2"), mut = css("--muted");
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Population pyramid, males left and females right">`;
+  s += `<text x="${cx - 6}" y="11" fill="${ink2}" font-size="10.5" text-anchor="end">Male</text><text x="${cx + 6}" y="11" fill="${ink2}" font-size="10.5">Female</text>`;
+  for (let i = 0; i < 17; i++) {
+    const y = top + (16 - i) * (rowH + gap), wm = sc(pm[i]), wf = sc(pf[i]);
+    s += `<text x="0" y="${y + rowH - 3}" fill="${mut}" font-size="9.5" font-family="IBM Plex Mono, monospace">${AGES[i]}</text>`;
+    s += `<path d="M${cx - 1} ${y} h${-Math.max(wm - 3, 0)} a3 3 0 0 0 -3 3 v${rowH - 6} a3 3 0 0 0 3 3 h${Math.max(wm - 3, 0)} z" fill="${COL.male}"/>`;
+    s += `<path d="M${cx + 1} ${y} h${Math.max(wf - 3, 0)} a3 3 0 0 1 3 3 v${rowH - 6} a3 3 0 0 1 -3 3 h${-Math.max(wf - 3, 0)} z" fill="${COL.female}"/>`;
+    s += `<rect x="${labW}" y="${y}" width="${W - labW}" height="${rowH}" fill="transparent" data-t="${AGES[i]} · Male ${fmt(male[i])} (${pm[i].toFixed(1)}%) · Female ${fmt(female[i])} (${pf[i].toFixed(1)}%)"/>`;
+  }
+  const yb = top + 17 * (rowH + gap) + 11, t = Math.round(max / 2 * 10) / 10;
+  s += `<line x1="${cx}" x2="${cx}" y1="${top - 2}" y2="${yb - 9}" stroke="${css("--line")}"/>`;
+  s += `<text x="${cx}" y="${yb}" fill="${mut}" font-size="9.5" text-anchor="middle" font-family="IBM Plex Mono, monospace">0</text>`;
+  for (const x of [cx - sc(t), cx + sc(t)]) s += `<text x="${x}" y="${yb}" fill="${mut}" font-size="9.5" text-anchor="middle" font-family="IBM Plex Mono, monospace">${t}%</text>`;
+  return s + "</svg>";
+}
+function donut(m, f, size = 96) {
+  const r = size / 2 - 7, C = 2 * Math.PI * r, t = m + f || 1, fm = m / t, g = 2, c = size / 2;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="Male ${fmt(m)}, female ${fmt(f)}">
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${COL.male}" stroke-width="10" stroke-dasharray="${Math.max(C * fm - g, 0)} ${C}" transform="rotate(-90 ${c} ${c})" data-t="Male: ${fmt(m)} (${(100 * fm).toFixed(1)}%)"/>
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${COL.female}" stroke-width="10" stroke-dasharray="${Math.max(C * (1 - fm) - g, 0)} ${C}" transform="rotate(${-90 + 360 * fm} ${c} ${c})" data-t="Female: ${fmt(f)} (${(100 - 100 * fm).toFixed(1)}%)"/>
+    <text x="50%" y="50%" dy="4" text-anchor="middle" fill="${css("--ink")}" font-family="IBM Plex Mono, monospace" font-size="13">${big(t)}</text></svg>`;
+}
+function barRows(items, total) {
+  const max = Math.max(...items.map(i => i.v), 1);
+  return `<div class="rows">${items.map(i => `<div class="row" data-t="${esc(i.label)}: ${fmt(i.v)}${total ? ` (${(100 * i.v / total).toFixed(1)}%)` : ""}">
+    <span class="lab"><span class="sw" style="background:${i.c}"></span>${esc(i.label)}</span>
+    <span class="bar"><i style="width:${(100 * i.v / max).toFixed(1)}%;background:${i.c}"></i></span>
+    <span class="val">${fmt(i.v)}</span></div>`).join("")}</div>`;
+}
+const stat = (v, k) => `<div class="stat"><span class="v">${v}</span><span class="k">${k}</span></div>`;
+function ageSummary(male, female) {
+  const sm = a => a.reduce((x, y) => x + y, 0), M = sm(male), F = sm(female), t = M + F || 1;
+  const band = (a, b) => sm(male.slice(a, b)) + sm(female.slice(a, b));
+  const kids = band(0, 3), old = band(13, 17), work = t - kids - old;
+  return { u15: 100 * kids / t, o65: 100 * old / t, dep: 100 * (kids + old) / Math.max(work, 1), sexr: 100 * M / Math.max(F, 1),
+           u5: male[0] + female[0], w1549: sm(female.slice(3, 10)), M, F };
+}
+function maxPctOf(...rs) {
+  let mx = 0.1;
+  for (const r of rs) { if (!r) continue; const t = r.male.concat(r.female).reduce((a, b) => a + b, 0) || 1; for (let i = 0; i < 17; i++) mx = Math.max(mx, 100 * r.male[i] / t, 100 * r.female[i] / t); }
+  return mx;
+}
+
+/* ---------------- panel ---------------- */
+function render() {
+  const body = $("#panelBody"), scroll = body.scrollTop;
+  const back = canBack() && !!S.states;
+  $("#backBtn").hidden = !back; $("#tbBack").hidden = !back; $("#brand").hidden = back && isPhone();
+  if (back) $("#backLabel").textContent = backLabel();
+  $("#metricCard").hidden = !(S.view === "nation" && S.mode === "explore");
+  $("#layerChips").hidden = !(S.view === "state" || (S.mode !== "explore" && !(S.mode === "compare" && S.cmpKind === "states")));
+  document.querySelectorAll(".mode[data-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode)));
+  if (!S.states) { body.innerHTML = `<div class="empty">Loading map data…</div>`; return; }
+  const legend = legendHtml();
+  let html;
+  if (S.mode === "circle") html = renderCircle();
+  else if (S.mode === "compare") html = S.cmpKind === "states" ? renderCompareStates() : renderCompareAreas();
+  else html = S.view === "state" ? renderState() : renderNation();
+  body.innerHTML = html.replace("<!--LEGEND-->", legend ? `<div class="legend-inline">${legend}</div>` : "");
+  body.scrollTop = scroll;
+  const L = $("#legend"); L.innerHTML = legend; L.hidden = !legend;
+  bindPanel();
+}
+function crumbs() {
+  return `<div class="crumbs">${S.view === "state" ? `<button type="button" data-act="nation">Nigeria</button><span>›</span><span>${esc(S.stateByCode[S.code].properties.name)}</span>` : `<span>Nigeria · 37 states · 774 LGAs</span>`}</div>`;
+}
+function renderNation() {
+  const m = METRICS.find(x => x.key === S.metric);
+  const ranked = S.states.features.map(f => f.properties).filter(p => p[m.key] != null).sort((a, b) => b[m.key] - a[m.key]);
+  const n = S.nigeria, a = ageSummary(n.male, n.female);
+  const row = (p, i) => `<tr data-state="${p.code}"><td>${i + 1}. ${esc(p.name)}</td><td>${m.fmt(p[m.key])}</td></tr>`;
+  return `${crumbs()}
+    <div><h1 class="place">Nigeria</h1><div class="sub">${tapWord()} a state to open it. Use <b>Compare</b> below to put two states side by side.</div></div>
+    <div class="bigline"><span class="bignum">${big(n.pop)}</span><span class="sub">people, 2025 model estimate</span></div>
+    <!--LEGEND-->
+    <div class="stats">${stat(pct(a.u15), "under 15 years")}${stat(fmt1(a.dep), "dependants per 100 working-age")}${stat(fmt1(a.sexr), "males per 100 females")}${stat(big(a.u5), "children under 5")}</div>
+    <div class="section"><div class="section-title"><h2>All states: ${esc(m.label.toLowerCase())}</h2><span class="note">${esc(m.unit)} · ${tapWord().toLowerCase()} a row to open</span></div>
+      <div class="tablewrap"><table class="lgas"><thead><tr><th>State</th><th>Value</th></tr></thead><tbody>${ranked.map(row).join("")}</tbody></table></div></div>
+    <div class="section"><div class="section-title"><h2>Age and sex</h2><span class="note">% of total population</span></div>${pyramid(n.male, n.female)}</div>`;
+}
+function renderState() {
+  const f = S.stateByCode[S.code].properties, pr = S.cache[S.code]?.profile;
+  const head = `${crumbs()}<div><h1 class="place">${esc(f.name)}</h1><div class="sub">${esc(f.zone)} · capital ${esc(f.capital)} · ${fmt(f.area)} km²</div></div>`;
+  if (!pr) return head + `<div class="empty">Loading ${esc(f.name)}…</div>`;
+  const as = pr.age_sex, hfp = pr.health_facilities, pop = pr.population;
+  const lv = hfp.by_level || {}, ow = hfp.by_ownership || {}, st = hfp.by_functional_status || {}, tot = Math.max(hfp.total_patient_care, 1);
+  const pov = (pr.poverty_mpi || []).slice(-1)[0];
+  const lgas = [...(pr.lgas || [])].sort((a, b) => S.lgaSort === "lga" ? a.lga.localeCompare(b.lga) : (b[S.lgaSort] ?? 0) - (a[S.lgaSort] ?? 0));
+  const th = (k, l) => `<th data-sort="${k}" aria-sort="${S.lgaSort === k ? "descending" : "none"}">${l}${S.lgaSort === k ? " ↓" : ""}</th>`;
+  return `${head}
+    <div class="bigline"><span class="bignum">${big(pop.total)}</span><span class="sub">people · ${fmt1(pop.share_of_nigeria_pct)}% of Nigeria</span></div>
+    <!--LEGEND-->
+    <div class="stats">
+      ${stat(fmt(pop.density_per_km2), "people per km²")}${stat(pct(as.pct_0_14), "under 15 years")}
+      ${stat(fmt1(as.dependency_ratio), "dependency ratio")}${stat(fmt1(as.sex_ratio_m_per_100f), "males per 100 females")}
+      ${stat(fmt2(pop.facilities_per_10k), "health facilities per 10,000")}${stat(big(pop.people_per_secondary_or_tertiary_facility), "people per secondary/tertiary facility")}
+      ${stat(pov ? pct(pov.poor_pct) : "–", "multidimensionally poor (2021)")}${stat(fmt(pr.maternal_mortality_2016?.per_100k_live_births), "maternal deaths per 100k births (2016)")}
+    </div>
+    <div class="section"><div class="section-title"><h2>Age and sex</h2><span class="note">${big(as.under5)} under 5 · ${big(as.women_15_49)} women 15–49</span></div>${pyramid(as.male, as.female)}</div>
+    <div class="section"><div class="section-title"><h2>Health facilities</h2><span class="note">${fmt(hfp.total_patient_care)} patient-care</span></div>
+      <div class="eyebrow">Level of care</div>
+      ${barRows([{ label: "Primary", v: lv.Primary || 0, c: COL.lv[0] }, { label: "Secondary", v: lv.Secondary || 0, c: COL.lv[1] }, { label: "Tertiary", v: lv.Tertiary || 0, c: COL.lv[2] }], tot)}
+      <div class="eyebrow">Ownership (indicative)</div>
+      ${barRows([{ label: "Public", v: ow.Public || 0, c: css("--ink-2") }, { label: "Private", v: ow.Private || 0, c: css("--ink-2") }, { label: "Not stated", v: ow["Not stated"] || 0, c: "#6c6679" }], tot)}
+      <div class="note">${pct(100 * (st.Functional || 0) / tot)} recorded as functional; ${pct(100 * (st["Not stated"] || 0) / tot)} have no recorded status. Switch on "Health facilities" above the map to see them.</div></div>
+    <div class="section"><div class="section-title"><h2>LGAs</h2><span class="note">${lgas.length} · ${tapWord().toLowerCase()} a row to zoom · ${tapWord().toLowerCase()} a heading to sort</span></div>
+      <div class="tablewrap"><table class="lgas"><thead><tr>${th("lga", "LGA")}${th("population", "People")}${th("density_per_km2", "/km²")}${th("hf_per_10k", "HF/10k")}</tr></thead>
+      <tbody>${lgas.map(l => `<tr data-lga="${esc(l.lga_id)}"><td>${esc(l.lga)}</td><td>${big(l.population)}</td><td>${fmt(l.density_per_km2)}</td><td>${fmt2(l.hf_per_10k ?? 0)}</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="section"><div class="section-title"><h2>Displacement, 2025–26</h2></div>
+      <div class="kv"><span>People newly displaced (official figures)</span><span>${fmt(pr.displacement_2025_2026?.total)}</span></div>
+      ${Object.entries(pr.displacement_2025_2026?.by_hazard || {}).map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join("")}</div>`;
+}
+const radiusRow = () => `<div class="radius-row"><label for="radius">Radius</label><input id="radius" type="range" min="2" max="40" step="1" value="${S.radius}"><output id="radiusOut" for="radius">${S.radius} km</output></div>`;
+const tabsHtml = () => `<div class="tabs" role="group" aria-label="Analysis view">${[["pop", "Population"], ["age", "Age pyramid"], ["hf", "Health"]].map(([k, l]) => `<button type="button" class="tab" data-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join("")}</div>`;
+function analysisBlock(res, key, maxPct, wide) {
+  if (!res) return `<div class="empty">${tapWord()} the map to place circle ${key}.</div>`;
+  const a = ageSummary(res.male, res.female);
+  if (S.tab === "pop") return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">${donut(a.M, a.F, wide ? 96 : 80)}<div class="rows" style="flex:1;min-width:110px">
+      <div class="kv"><span><span class="sw" style="background:${COL.male}"></span> Male</span><span>${fmt(a.M)}</span></div>
+      <div class="kv"><span><span class="sw" style="background:${COL.female}"></span> Female</span><span>${fmt(a.F)}</span></div>
+      <div class="kv"><span>Per km²</span><span>${fmt(res.pop / (Math.PI * S.radius ** 2))}</span></div></div></div>
+      <div class="kv"><span>Under 15</span><span>${pct(a.u15)}</span></div><div class="kv"><span>Under 5</span><span>${fmt(a.u5)}</span></div>
+      <div class="kv"><span>Women 15–49</span><span>${fmt(a.w1549)}</span></div><div class="kv"><span>Aged 65+</span><span>${pct(a.o65)}</span></div>`;
+  if (S.tab === "age") return pyramid(res.male, res.female, { max: maxPct, w: wide ? 330 : 200, rowH: wide ? 13 : 11 });
+  return `${barRows([{ label: "Primary", v: res.lv[0], c: COL.lv[0] }, { label: "Secondary", v: res.lv[1], c: COL.lv[1] }, { label: "Tertiary", v: res.lv[2], c: COL.lv[2] }], res.fac)}
+    <div class="kv"><span>Per 10,000 people</span><span>${res.pop ? fmt2(1e4 * res.fac / res.pop) : "–"}</span></div>
+    <div class="kv"><span>Public / private / not stated</span><span>${res.own.join(" / ")}</span></div>
+    <div class="kv"><span>Recorded functional</span><span>${res.fac ? pct(100 * res.func / res.fac) : "–"}</span></div>
+    <div class="note">${res.near ? `Nearest secondary/tertiary: <b>${esc(res.near.name)}</b> (${esc(res.near.level)}, ${esc(res.near.lga)}), ${res.near.d.toFixed(1)} km straight-line from the centre.` : "No secondary or tertiary facility found nearby."}</div>`;
+}
+function renderCircle() {
+  const r = S.results.A;
+  return `${crumbs()}<div><h1 class="place">Circle analysis</h1><div class="sub">${tapWord()} the map to drop the circle. ${tapWord()} again or drag the pin to move it.</div></div>
+    ${radiusRow()}
+    ${r ? `<div class="bigline"><span class="bignum">${fmt(r.pop)}</span><span class="sub">people within ${S.radius} km</span></div>` : ""}
+    <!--LEGEND-->
+    ${tabsHtml()}${analysisBlock(r, "A", maxPctOf(r), true)}`;
+}
+function segHtml() {
+  return `<div class="seg" role="group" aria-label="What to compare"><button type="button" data-kind="states" aria-pressed="${S.cmpKind === "states"}">Two states</button><button type="button" data-kind="areas" aria-pressed="${S.cmpKind === "areas"}">Two areas</button></div>`;
+}
+function renderCompareAreas() {
+  const { A, B } = S.results, mx = maxPctOf(A, B);
+  const hint = !S.circles.A ? `${tapWord()} the map to place circle A.` : !S.circles.B ? `Now ${tapWord().toLowerCase()} the map to place circle B.` : `${tapWord()} near a circle, or drag its pin, to move it.`;
+  const cell = (k, r) => `<div class="freeze-cell"><div class="who"><span class="tag" style="background:${COL[k]}">${k}</span><b>Circle ${k}</b></div><span class="n">${r ? fmt(r.pop) + " people" : "not placed yet"}</span></div>`;
+  return `${segHtml()}
+    <div class="freeze"><div class="freeze-grid">${cell("A", A)}${cell("B", B)}</div></div>
+    <div class="sub">${hint}</div>${radiusRow()}<!--LEGEND-->${tabsHtml()}
+    <div class="cmp"><div class="cmp-col">${analysisBlock(A, "A", mx, false)}</div><div class="cmp-col">${analysisBlock(B, "B", mx, false)}</div></div>`;
+}
+function renderCompareStates() {
+  const opts = S.states.features.map(f => f.properties).sort((x, y) => x.name.localeCompare(y.name));
+  const [ca, cb] = S.cmpStates, pa = S.cache[ca]?.profile, pb = S.cache[cb]?.profile, fa = S.stateByCode[ca].properties, fb = S.stateByCode[cb].properties;
+  const sel = i => `<select class="pick" data-cmp="${i}" id="cmpState${i}" aria-label="State ${i ? "B" : "A"}">${opts.map(p => `<option value="${p.code}" ${p.code === S.cmpStates[i] ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
+  const head = `${segHtml()}<div class="freeze"><div class="freeze-grid">
+      <div class="freeze-cell"><div class="who"><span class="tag" style="background:${COL.A}">A</span>${sel(0)}</div><span class="n">${big(fa.pop)} people</span></div>
+      <div class="freeze-cell"><div class="who"><span class="tag" style="background:${COL.B}">B</span>${sel(1)}</div><span class="n">${big(fb.pop)} people</span></div></div></div>`;
+  if (!pa || !pb) return head + `<div class="empty">Loading…</div>`;
+  const g = (p, path, d) => path.split(".").reduce((o, k) => o?.[k], p) ?? d;
+  const last = p => (p.poverty_mpi || []).slice(-1)[0] || {};
+  const lvl = (p, k) => g(p, "health_facilities.by_level." + k, 0);
+  const own = (p, k) => g(p, "health_facilities.by_ownership." + k, 0);
+  const tot = p => Math.max(g(p, "health_facilities.total_patient_care", 0), 1);
+  const R = [
+    ["People"],
+    ["Population (2025 model)", p => g(p, "population.total"), fmt],
+    ["Share of Nigeria", p => g(p, "population.share_of_nigeria_pct"), pct],
+    ["Area (km²)", p => p.area_km2, fmt],
+    ["People per km²", p => g(p, "population.density_per_km2"), fmt],
+    ["Age and sex"],
+    ["Children under 5", p => g(p, "age_sex.under5"), fmt],
+    ["Under 15 years", p => g(p, "age_sex.pct_0_14"), pct],
+    ["Working age 15–64", p => g(p, "age_sex.pct_15_64"), pct],
+    ["Aged 65+", p => g(p, "age_sex.pct_65_plus"), pct],
+    ["Dependency ratio", p => g(p, "age_sex.dependency_ratio"), fmt1],
+    ["Males per 100 females", p => g(p, "age_sex.sex_ratio_m_per_100f"), fmt1],
+    ["Women aged 15–49", p => g(p, "age_sex.women_15_49"), fmt],
+    ["Youth aged 15–24", p => g(p, "age_sex.youth_15_24"), fmt],
+    ["Health facilities"],
+    ["Patient-care facilities", p => g(p, "health_facilities.total_patient_care"), fmt],
+    ["Per 10,000 people", p => g(p, "population.facilities_per_10k"), fmt2],
+    ["Primary", p => lvl(p, "Primary"), fmt],
+    ["Secondary", p => lvl(p, "Secondary"), fmt],
+    ["Tertiary", p => lvl(p, "Tertiary"), fmt],
+    ["People per secondary/tertiary", p => g(p, "population.people_per_secondary_or_tertiary_facility"), fmt],
+    ["Recorded functional", p => 100 * g(p, "health_facilities.by_functional_status.Functional", 0) / tot(p), pct],
+    ["Public (indicative)", p => own(p, "Public"), fmt],
+    ["Private (indicative)", p => own(p, "Private"), fmt],
+    ["Ownership not stated", p => own(p, "Not stated"), fmt],
+    ["Poverty and health outcomes"],
+    ["Multidimensionally poor (2021)", p => last(p).poor_pct, pct],
+    ["In severe poverty (2021)", p => last(p).severe_poverty_pct, pct],
+    ["MPI score (2021)", p => last(p).mpi, v => v == null ? "–" : (+v).toFixed(3)],
+    ["Maternal deaths per 100k births (2016)", p => g(p, "maternal_mortality_2016.per_100k_live_births"), fmt],
+    ["Modern contraception (2017)", p => g(p, "contraceptive_use_2017.modern_pct"), pct],
+    ["Any contraceptive method (2017)", p => g(p, "contraceptive_use_2017.any_method_pct"), pct],
+    ["Paid a bribe to an official (2016)", p => p.bribery_prevalence_2016_pct, pct],
+    ["Displacement and insecurity"],
+    ["Newly displaced 2025–26", p => g(p, "displacement_2025_2026.total"), fmt],
+    ["Displaced per 1,000 residents", p => g(p, "population.displaced_per_1k_2025_26"), v => v == null ? "–" : (+v).toFixed(1)],
+    ["By conflict", p => g(p, "displacement_2025_2026.by_type.Conflict", 0), fmt],
+    ["By disaster", p => g(p, "displacement_2025_2026.by_type.Disaster", 0), fmt],
+    ["Reported sexual-violence incidents (2020–26)", p => g(p, "crsv_2020_2026.incidents", 0), fmt]
+  ];
+  const rows = R.map(r => {
+    if (r.length === 1) return `<tr class="grp"><td colspan="3">${r[0]}</td></tr>`;
+    const va = r[1](pa), vb = r[1](pb), ok = va != null && vb != null && !isNaN(va) && !isNaN(vb);
+    return `<tr><td>${r[0]}</td><td class="num${ok && va > vb ? " hi" : ""}">${r[2](va)}</td><td class="num${ok && vb > va ? " hi" : ""}">${r[2](vb)}</td></tr>`;
+  }).join("");
+  const mx = maxPctOf(pa.age_sex, pb.age_sex);
+  return `${head}
+    <table class="ctab"><colgroup><col class="k"><col><col></colgroup><tbody>${rows}</tbody></table>
+    <div class="note">The larger value in each row is shown brighter. Larger is not always better, so read each row on its own. ${tapWord()} a state on the map to swap it in.</div>
+    <div class="section"><div class="section-title"><h2>Age pyramids</h2><span class="note">same scale, % of each state</span></div>
+      <div class="cmp"><div class="cmp-col"><b>${esc(fa.name)}</b>${pyramid(pa.age_sex.male, pa.age_sex.female, { max: mx, w: 200, rowH: 11 })}</div>
+      <div class="cmp-col"><b>${esc(fb.name)}</b>${pyramid(pb.age_sex.male, pb.age_sex.female, { max: mx, w: 200, rowH: 11 })}</div></div></div>`;
+}
+function legendHtml() {
+  if (!S.states) return "";
+  const parts = [];
+  if (S.view === "nation" && S.mode === "explore") {
+    const m = METRICS.find(x => x.key === S.metric), [lo, hi] = S.metricRange || [0, 1];
+    parts.push(`<div class="lg"><div class="t">${esc(m.label)}</div><div class="ramp" style="background:linear-gradient(90deg,${MAGMA.slice(0, 6).join(",")})"></div>
+      <div class="ramp-labels"><span>${m.fmt(lo)}</span><span>${esc(m.unit)}</span><span>${m.fmt(hi)}</span></div></div>`);
+  } else if (S.layers.hex && !(S.mode === "compare" && S.cmpKind === "states")) {
+    parts.push(`<div class="lg"><div class="t">People per hexagon (≈5.2 km²)</div><div class="ramp" style="background:linear-gradient(90deg,${MAGMA.join(",")})"></div>
+      <div class="ramp-labels"><span>1</span><span>100</span><span>1k</span><span>10k</span><span>30k+</span></div></div>`);
+  }
+  if (S.layers.fac && (S.view === "state" || S.mode !== "explore") && !(S.mode === "compare" && S.cmpKind === "states")) {
+    parts.push(`<div class="lg"><div class="t">Health facilities</div><div class="leg-row"><span><i class="sw" style="background:${COL.lv[0]}"></i>Primary</span><span><i class="sw" style="background:${COL.lv[1]}"></i>Secondary</span><span><i class="sw" style="background:${COL.lv[2]}"></i>Tertiary</span></div></div>`);
+  }
+  return parts.join("");
+}
+
+/* ---------------- events ---------------- */
+function bindPanel() {
+  const body = $("#panelBody");
+  body.querySelectorAll("[data-act=nation]").forEach(b => b.onclick = () => { if (S.mode !== "explore") setMode("explore", true); goNation(); });
+  body.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { S.tab = b.dataset.tab; render(); });
+  body.querySelectorAll("tr[data-state]").forEach(tr => tr.onclick = () => openState(tr.dataset.state));
+  body.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => { S.lgaSort = th.dataset.sort; render(); });
+  body.querySelectorAll("tr[data-lga]").forEach(tr => tr.onclick = () => zoomLga(tr.dataset.lga));
+  body.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => setCmpKind(b.dataset.kind));
+  body.querySelectorAll("select[data-cmp]").forEach(s => s.onchange = () => { S.cmpStates[+s.dataset.cmp] = s.value; compareStatesLoad(); });
+  const rad = body.querySelector("#radius");
+  if (rad) {
+    rad.oninput = () => { S.radius = +rad.value; body.querySelector("#radiusOut").textContent = S.radius + " km"; drawCircles(); };
+    rad.onchange = () => analyseAndRender();
+  }
+}
+function zoomLga(id) {
+  const f = S.cache[S.code]?.lga?.features.find(x => x.properties.id === id); if (!f) return;
+  let w = 180, s = 90, e = -180, n = -90;
+  const walk = c => typeof c[0] === "number" ? (w = Math.min(w, c[0]), e = Math.max(e, c[0]), s = Math.min(s, c[1]), n = Math.max(n, c[1])) : c.forEach(walk);
+  walk(f.geometry.coordinates);
+  if (isPhone()) setSheet("peek");
+  map.fitBounds([[w, s], [e, n]], { padding: mapPadding(), duration: 600 });
+}
+async function compareStatesLoad() {
+  render();
+  await Promise.all(S.cmpStates.map(c => loadState(c, ["profile"])));
+  if (S.mode !== "compare" || S.cmpKind !== "states") return;
+  const fs = S.cmpStates.map(c => S.stateByCode[c].properties.bbox);
+  map.fitBounds([[Math.min(fs[0][0], fs[1][0]), Math.min(fs[0][1], fs[1][1])], [Math.max(fs[0][2], fs[1][2]), Math.max(fs[0][3], fs[1][3])]], { padding: mapPadding(), duration: 600 });
+  map.setPaintProperty("states-fill", "fill-color", ["match", ["get", "code"], S.cmpStates[0], COL.A, S.cmpStates[1], COL.B, "#201e2a"]);
+  map.setPaintProperty("states-fill", "fill-opacity", ["match", ["get", "code"], S.cmpStates[0], 0.6, S.cmpStates[1], 0.6, 1]);
+  refreshHex(); render();
+}
+function setCmpKind(kind) {
+  S.cmpKind = kind;
+  clearCircles();
+  if (kind === "states") { refreshFac(); compareStatesLoad(); }
+  else { applyMetric(); refreshHex(); render(); toast(`${tapWord()} the map to place circle A, then B`); }
+}
+function initControls() {
+  const sel = $("#metricSel");
+  sel.innerHTML = METRICS.map(m => `<option value="${m.key}">${esc(m.label)}</option>`).join("");
+  sel.value = S.metric;
+  sel.onchange = () => { S.metric = sel.value; applyMetric(); render(); };
+  document.querySelectorAll(".mode[data-mode]").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  $("#backBtn").onclick = () => goBack(); $("#tbBack").onclick = () => goBack();
+  const chip = (id, key, after) => { const b = $(id); b.onclick = async () => { S.layers[key] = !S.layers[key]; b.setAttribute("aria-pressed", String(S.layers[key])); await after(); render(); }; };
+  chip("#chipHex", "hex", async () => refreshHex());
+  chip("#chipLga", "lga", async () => refreshLga());
+  chip("#chipFac", "fac", async () => {
+    if (S.layers.fac) await Promise.all((S.view === "state" ? [S.code] : Object.keys(S.cache)).map(c => loadState(c, ["fac"])));
+    refreshFac();
+  });
+  $("#aboutBtn").onclick = () => { $("#about").hidden = false; $("#aboutClose").focus(); };
+  $("#aboutClose").onclick = () => { $("#about").hidden = true; $("#aboutBtn").focus(); };
+  $("#about").onclick = e => { if (e.target.id === "about") $("#about").hidden = true; };
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if (!$("#about").hidden) $("#about").hidden = true; else if (canBack()) goBack();
+  });
+
+  // bottom sheet: tap cycles, swipe up/down snaps
+  const order = ["peek", "half", "full"], handle = $("#sheetHandle");
+  let y0 = null;
+  handle.onclick = () => { const i = order.indexOf($("#panel").dataset.sheet); setSheet(order[(i + 1) % 3]); };
+  const start = y => { y0 = y; };
+  const end = y => { if (y0 == null) return; const dy = y - y0; y0 = null; if (Math.abs(dy) < 25) return; const i = order.indexOf($("#panel").dataset.sheet); setSheet(order[Math.max(0, Math.min(2, i + (dy < 0 ? 1 : -1)))]); };
+  for (const el of [handle, $(".panel-head")]) {
+    el.addEventListener("touchstart", e => start(e.touches[0].clientY), { passive: true });
+    el.addEventListener("touchend", e => end(e.changedTouches[0].clientY));
+  }
+
+  // tooltips for panel charts
+  const tip = $("#tip");
+  $("#panelBody").addEventListener("mousemove", e => {
+    const t = e.target.closest("[data-t]");
+    if (!t) { tip.hidden = true; return; }
+    tip.textContent = t.getAttribute("data-t"); showTip(e.clientX, e.clientY);
+  });
+  $("#panelBody").addEventListener("mouseleave", () => tip.hidden = true);
+  let rt;
+  addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { setSheet($("#panel").dataset.sheet); if (S.view === "nation" && S.mode === "explore") fitNigeria(false); render(); }, 200); });
+}
+function showTip(x, y) {
+  const tip = $("#tip"); tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(x + 14, innerWidth - w - 8)) + "px";
+  tip.style.top = Math.max(8, Math.min(y + 14, innerHeight - h - 8)) + "px";
+}
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 2600); }
+function setMode(mode, fromBack) {
+  if (mode === S.mode) return;
+  if (S.mode === "explore" && mode !== "explore" && !fromBack) pushNav();
+  clearCircles();
+  S.mode = mode;
+  if (mode === "compare") {
+    S.cmpKind = S.view === "state" ? "areas" : "states";
+    if (S.view === "state") S.cmpStates = [S.code, S.cmpStates.find(c => c !== S.code) || "NG025"];
+  }
+  applyMetric();
+  if (mode === "explore") {
+    setSheet(S.view === "state" && isPhone() ? "half" : "peek");
+    if (S.view === "state") fitState(S.code); else fitNigeria();
+  } else {
+    if (mode === "circle") toast(`${tapWord()} the map to drop a circle`);
+    else if (S.cmpKind === "areas") toast(`${tapWord()} the map to place circle A, then B`);
+    if (isPhone()) setSheet("half");
+  }
+  refreshHex(); refreshLga(); refreshFac(); render();
+  if (mode === "compare" && S.cmpKind === "states") compareStatesLoad();
+}
+
+let hoverState = null, hoverLga = null, tipTimer = null;
+function describeAt(point) {
+  const layers = ["fac-pts", "lga-fill", "states-fill"].filter(l => map.getLayer(l));
+  const feats = map.queryRenderedFeatures(point, { layers });
+  const fac = feats.find(f => f.layer.id === "fac-pts"), lga = feats.find(f => f.layer.id === "lga-fill"), st = feats.find(f => f.layer.id === "states-fill");
+  if (hoverState !== null) map.setFeatureState({ source: "states", id: hoverState }, { hover: false });
+  if (hoverLga !== null) map.setFeatureState({ source: "lga", id: hoverLga }, { hover: false });
+  hoverState = hoverLga = null;
+  if (fac) {
+    const d = S.cache[fac.properties.c].fac, r = d.rows[fac.properties.i];
+    return { kind: "fac", html: `<b>${esc(r[2])}</b><br>${d.levels[r[3]]} · ${esc(d.groups[r[6]])}<br>${d.owners[r[4]]} · ${d.status[r[5]]}<br><span style="color:var(--muted)">${esc(r[7])} LGA</span>` };
+  }
+  if (lga && S.view === "state") {
+    hoverLga = lga.id; map.setFeatureState({ source: "lga", id: hoverLga }, { hover: true });
+    const p = lga.properties;
+    return { kind: "lga", html: `<b>${esc(p.name)}</b> LGA<br><span class="m">${fmt(p.pop)}</span> people · <span class="m">${fmt(p.density)}</span>/km²<br><span class="m">${fmt(p.hf)}</span> facilities (${fmt2(p.hf10k)} per 10k)` };
+  }
+  if (st) {
+    const p = st.properties;
+    if (S.view === "state" && p.code === S.code) return null;
+    hoverState = st.id; map.setFeatureState({ source: "states", id: hoverState }, { hover: true });
+    const m = METRICS.find(x => x.key === S.metric);
+    const val = S.view === "nation" && S.mode === "explore" ? `<br>${esc(m.label)}: <span class="m">${m.fmt(p[m.key])}</span>` : "";
+    return { kind: "state", code: p.code, html: `<b>${esc(p.name)}</b>${val}${S.mode === "explore" ? `<br><span style="color:var(--muted)">${tapWord()} to open</span>` : ""}` };
+  }
+  return null;
+}
+function bindMapEvents() {
+  const tip = $("#tip");
+  map.on("mousemove", e => {
+    if (isPhone()) return;
+    const d = describeAt(e.point);
+    map.getCanvas().style.cursor = S.mode !== "explore" ? "crosshair" : (d ? "pointer" : "");
+    if (d) { tip.innerHTML = d.html; const r = map.getContainer().getBoundingClientRect(); showTip(r.left + e.point.x, r.top + e.point.y); } else tip.hidden = true;
+  });
+  map.on("mouseout", () => { tip.hidden = true; });
+  map.on("click", e => {
+    if (S.mode === "circle") { placeCircle("A", e.lngLat); return; }
+    if (S.mode === "compare") {
+      if (S.cmpKind === "states") {
+        const st = map.queryRenderedFeatures(e.point, { layers: ["states-fill"] })[0];
+        if (st && !S.cmpStates.includes(st.properties.code)) { S.cmpStates = [S.cmpStates[1], st.properties.code]; compareStatesLoad(); }
+        return;
+      }
+      let k = !S.circles.A ? "A" : !S.circles.B ? "B" : null;
+      if (!k) { const dA = hav(e.lngLat.lat, e.lngLat.lng, S.circles.A.lat, S.circles.A.lng), dB = hav(e.lngLat.lat, e.lngLat.lng, S.circles.B.lat, S.circles.B.lng); k = dA <= dB ? "A" : "B"; }
+      placeCircle(k, e.lngLat); return;
+    }
+    const d = describeAt(e.point);
+    if (d?.kind === "state") { tip.hidden = true; openState(d.code); return; }
+    if (d && isPhone()) {   // phones have no hover: show the info card on tap
+      tip.innerHTML = d.html; const r = map.getContainer().getBoundingClientRect(); showTip(r.left + e.point.x, r.top + e.point.y);
+      clearTimeout(tipTimer); tipTimer = setTimeout(() => tip.hidden = true, 4000);
+    }
+  });
+  map.on("dragstart", () => { tip.hidden = true; });
+}
+render();
+})();
+</script>
